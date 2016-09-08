@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RestSharp;
@@ -36,42 +37,6 @@ namespace bracketAPI.Challonge
             APIKey = apikey;
         }
 
-        private string ParseEnum(TournamentState tournamentState)
-        {
-            switch (tournamentState)
-            {
-                case TournamentState.All:
-                    return "all";
-                case TournamentState.Pending:
-                    return "pending";
-                case TournamentState.InProgress:
-                    return "in_progress";
-                case TournamentState.Ended:
-                    return "ended";
-            }
-
-            //Null
-            return string.Empty;
-        }
-
-        private string ParseEnum(TournamentType tournamentType)
-        {
-            switch (tournamentType)
-            {
-                case TournamentType.SingleElimination:
-                    return "single_elimination";
-                case TournamentType.DoubleElimination:
-                    return "double_elimination";
-                case TournamentType.RoundRobin:
-                    return "round_robin";
-                case TournamentType.Swiss:
-                    return "swiss";
-            }
-
-            //TournamentType.All || Null
-            return string.Empty;
-        }
-
         /// <summary>
         /// Retrieve tournament from specified ID
         /// </summary>
@@ -86,8 +51,8 @@ namespace bracketAPI.Challonge
                 Credentials = new NetworkCredential(Username, APIKey),
                 Parameters =
                 {
-                    new Parameter() { Name = "include_participants", Value = Convert.ToSingle(includeParticipants) },
-                    new Parameter() { Name = "include_matches", Value = Convert.ToSingle(includeMatches) }
+                    new Parameter() { Name = "include_participants", Value = Convert.ToSingle(includeParticipants), ContentType = null, Type = ParameterType.GetOrPost },
+                    new Parameter() { Name = "include_matches", Value = Convert.ToSingle(includeMatches), ContentType = null, Type = ParameterType.GetOrPost }
                 },
                 RequestFormat = (RestSharp.DataFormat)dataFormat
             };
@@ -95,20 +60,49 @@ namespace bracketAPI.Challonge
             //Pass request
             IRestResponse response = await restClient.ExecuteTaskAsync(request);
             if (response.StatusCode == HttpStatusCode.OK)
-                return new ChallongeTournament(response.Content, dataFormat);
+            {
+                if (dataFormat == DataFormat.JSON)
+                    return new ChallongeTournament(JObject.Parse(response.Content));
+                else if (dataFormat == DataFormat.XML)
+                    return new ChallongeTournament(XDocument.Parse(response.Content).Root);
+            }
 
-            //Failed somewhere along the line
+            //Request failed
             return null;
         }
 
         /// <summary>
         /// Retrieve tournament from specified tournament URL
         /// </summary>
-        public void GetTournament(string tournamentUrl, bool includeParticipants = false, bool includeMatches = false, DataFormat dataFormat = DataFormat.JSON)
+        public async Task<ChallongeTournament> GetTournament(string tournamentUrl, bool includeParticipants = false, bool includeMatches = false, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/tournaments/show
-            //https://api.challonge.com/v1/tournaments/{tournament}.json
-            
+
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{tournamentUrl}.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                Parameters =
+                {
+                    new Parameter() { Name = "include_participants", Value = Convert.ToSingle(includeParticipants), ContentType = null, Type = ParameterType.GetOrPost },
+                    new Parameter() { Name = "include_matches", Value = Convert.ToSingle(includeMatches), ContentType = null, Type = ParameterType.GetOrPost }
+                },
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                    return new ChallongeTournament(JObject.Parse(response.Content));
+                else if (dataFormat == DataFormat.XML)
+                    return new ChallongeTournament(XDocument.Parse(response.Content).Root);
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
@@ -117,6 +111,7 @@ namespace bracketAPI.Challonge
         public async Task<List<ChallongeTournament>> GetTournaments(TournamentState state = TournamentState.All, TournamentType type = TournamentType.All, DateTime createdAfter = default(DateTime), DateTime createdBefore = default(DateTime), string subDomain = "", DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/tournaments/index
+            List<ChallongeTournament> returnTournaments = new List<ChallongeTournament>();
 
             //Create RestClient & RestRequest
             RestClient restClient = new RestClient("https://api.challonge.com/v1/");
@@ -125,22 +120,36 @@ namespace bracketAPI.Challonge
                 Credentials = new NetworkCredential(Username, APIKey),
                 Parameters =
                 {
-                    new Parameter() { Name = "state", Value = ParseEnum(state) },
-                    //!string.IsNullOrWhiteSpace(ParseEnum(type)) ? new Parameter() { Name = "type", Value = ParseEnum(type) } : null,
-                    new Parameter() { Name = "created_after", Value = createdAfter.ToString("yyyy-MM-dd") },
-                    new Parameter() { Name = "created_before", Value = createdBefore.ToString("yyyy-MM-dd") },
-                    //!string.IsNullOrWhiteSpace(subDomain) ? new Parameter() { Name = "subdomain", Value = subDomain } : null
+                    new Parameter() { Name = "state", Value = ChallongeHelpers.ParseEnum(state), ContentType = null, Type = ParameterType.GetOrPost },
+                    new Parameter() { Name = "created_after", Value = createdAfter.ToString("yyyy-MM-dd"), ContentType = null, Type = ParameterType.GetOrPost },
+                    new Parameter() { Name = "created_before", Value = !createdBefore.Equals(default(DateTime)) ? createdBefore.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"), ContentType = null, Type = ParameterType.GetOrPost }
                 },
                 RequestFormat = (RestSharp.DataFormat)dataFormat
             };
+            if (!string.IsNullOrWhiteSpace(ChallongeHelpers.ParseEnum(type)))
+                request.AddParameter("type", ChallongeHelpers.ParseEnum(type), null, ParameterType.GetOrPost);
+            if (!string.IsNullOrWhiteSpace(subDomain))
+                request.AddParameter("subdomain", subDomain, null, ParameterType.GetOrPost);
 
             //Pass request
             IRestResponse response = await restClient.ExecuteTaskAsync(request);
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                return new List<ChallongeTournament>();
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject tournament in JArray.Parse(response.Content))
+                        returnTournaments.Add(new ChallongeTournament(tournament));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement tournament in XDocument.Parse(response.Content).Root.Elements())
+                        returnTournaments.Add(new ChallongeTournament(tournament));
+                }
+
+                return returnTournaments;
             }
 
+            //Request failed
             return null;
         }
 
@@ -151,7 +160,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/tournaments/show
             //https://api.challonge.com/v1/tournaments/{tournament}.json
-            
+
         }
 
         /// <summary>
@@ -161,7 +170,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/tournaments/show
             // https://api.challonge.com/v1/tournaments/{tournament}/participants/{participant_id}.json
-            
+
         }
 
         /// <summary>
@@ -171,7 +180,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/participants/index
             //https://api.challonge.com/v1/tournaments/{tournament}/participants.json
-            
+
         }
 
         /// <summary>
@@ -181,7 +190,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/participants/index
             //https://api.challonge.com/v1/tournaments/{tournament}/participants.json
-            
+
         }
 
         /// <summary>
@@ -191,7 +200,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/matches/show
             //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}.json
-            
+
         }
 
         /// <summary>
@@ -201,7 +210,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/matches/show
             //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}.json
-            
+
         }
 
         /// <summary>
@@ -211,7 +220,7 @@ namespace bracketAPI.Challonge
         {
             //http://api.challonge.com/v1/documents/matches/index
             //https://api.challonge.com/v1/tournaments/{tournament}/matches.json
-            
+
         }
 
         /// <summary>
