@@ -56,6 +56,7 @@
     <Compile Include="Challonge\ChallongeClient.cs" />
     <Compile Include="Challonge\ChallongeEnums.cs" />
     <Compile Include="Challonge\ChallongeHelpers.cs" />
+    <Compile Include="Helpers.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
