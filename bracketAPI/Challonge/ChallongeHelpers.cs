@@ -1,4 +1,10 @@
-﻿namespace bracketAPI.Challonge
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace bracketAPI.Challonge
 {
     public static class ChallongeHelpers
     {
@@ -83,5 +89,25 @@
             //Suppress error CS0161
             return 0;
         }
+
+        /// <summary>
+        /// Converts string passed from API to enum MatchState
+        /// </summary>
+        public static MatchState ParseMatchState(string matchState)
+        {
+            switch (matchState)
+            {
+                case "open":
+                    return MatchState.Open;
+                case "pending":
+                    return MatchState.Pending;
+                case "complete":
+                    return MatchState.Complete;
+            }
+
+            //Suppress error CS0161
+            return 0;
+        }
+
     }
 }

@@ -208,6 +208,9 @@ namespace bracketAPI.Challonge
         private JObject rawJSON;
         private XElement rawXML;
 
+        public List<ChallongeAttachment> Attachments { get; }
+        public MatchState State { get; }
+        public bool InProgress { get; }
         public int LoserParticipantID { get; }
         public int MatchID { get; }
         public int Participant1_ID { get; }
@@ -224,7 +227,21 @@ namespace bracketAPI.Challonge
             rawJSON = jObject;
 
             //Class Properties
-            //
+            if (!Helpers.IsNullOrEmpty(jObject["match"]["attachments"]))
+            {
+                //Create list
+                Attachments = new List<ChallongeAttachment>();
+
+                //Add participants to list
+                foreach (JObject attachment in jObject["match"]["attachments"])
+                    Attachments.Add(new ChallongeAttachment(attachment));
+            }
+
+            //bool Properties
+            InProgress = !Helpers.IsNullOrEmpty(jObject["match"]["underway_at"]);
+
+            //Enum Properties
+            State = ChallongeHelpers.ParseMatchState((string)jObject["match"]["state"]);
 
             //int Properties
             if (!Helpers.IsNullOrEmpty(jObject["match"]["loser_id"])) LoserParticipantID = (int)jObject["match"]["loser_id"];
@@ -244,7 +261,21 @@ namespace bracketAPI.Challonge
             rawXML = xElement;
 
             //Class Properties
-            //
+            if (!Helpers.IsNullOrEmpty(xElement.Element("attachments")))
+            {
+                //Create list
+                Attachments = new List<ChallongeAttachment>();
+
+                //Add participants to list
+                foreach (XElement attachment in xElement.Element("attachments").Elements())
+                    Attachments.Add(new ChallongeAttachment(attachment));
+            }
+
+            //bool Properties
+            InProgress = !Helpers.IsNullOrEmpty(xElement.Element("underway-at"));
+
+            //Enum Properties
+            State = ChallongeHelpers.ParseMatchState(xElement.Element("state").Value);
 
             //int Properties
             if (!Helpers.IsNullOrEmpty(xElement.Element("loser-id"))) LoserParticipantID = Convert.ToInt32(xElement.Element("loser-id").Value);
@@ -256,6 +287,55 @@ namespace bracketAPI.Challonge
             Round = Convert.ToInt32(xElement.Element("round").Value);
             TournamentID = Convert.ToInt32(xElement.Element("tournament-id").Value);
             if (!Helpers.IsNullOrEmpty(xElement.Element("winner_id"))) WinnerParticipantID = Convert.ToInt32(xElement.Element("winner_id").Value);
+        }
+    }
+
+    public class ChallongeAttachment
+    {
+        private JObject rawJSON;
+        private XElement rawXML;
+
+        public Uri URL { get; }
+        public int AttachmentID { get; }
+        public int MatchID { get; }
+        public int UserID { get; }
+        public string Description { get; }
+        public string Filename { get; }
+
+        public ChallongeAttachment(JObject jObject)
+        {
+            //Store raw JSON
+            rawJSON = jObject;
+
+            //Uri Properties
+            if (!Helpers.IsNullOrEmpty(jObject["match_attachment"]["url"]) || !Helpers.IsNullOrEmpty(jObject["match_attachment"]["asset_url"])) URL = !Helpers.IsNullOrEmpty(jObject["match_attachment"]["url"]) ? (Uri)jObject["match_attachment"]["url"] : (Uri)jObject["match_attachment"]["asset_url"];
+
+            //int Properties
+            AttachmentID = (int)jObject["match_attachment"]["id"];
+            MatchID = (int)jObject["match_attachment"]["match_id"];
+            UserID = (int)jObject["match_attachment"]["user_id"];
+
+            //string Properties
+            Description = (string)jObject["match_attachment"]["description"];
+            Filename = (string)jObject["match_attachment"]["original_file_name"];
+        }
+
+        public ChallongeAttachment(XElement xElement)
+        {
+            //Store raw XML
+            rawXML = xElement;
+
+            //Uri Properties
+            if (!Helpers.IsNullOrEmpty(xElement.Element("url")) || !Helpers.IsNullOrEmpty(xElement.Element("asset-url"))) URL = !Helpers.IsNullOrEmpty(xElement.Element("url")) ? new Uri(xElement.Element("url").Value) : new Uri(xElement.Element("asset-url").Value);
+
+            //int Properties
+            AttachmentID = Convert.ToInt32(xElement.Element("id").Value);
+            MatchID = Convert.ToInt32(xElement.Element("match-id").Value);
+            UserID = Convert.ToInt32(xElement.Element("user-id").Value);
+
+            //string Properties
+            Description = xElement.Element("description").Value;
+            Filename = xElement.Element("original-file-name").Value;
         }
     }
 }

@@ -1,3 +1,3 @@
 # BracketAPI #
-.NET wrapper for Challonge API v1<br>
-Supports GET requests<br>
+.NET wrapper for Challonge API v1 and smash.gg<br>
+Supports GET requests

@@ -80,7 +80,7 @@ namespace bracketAPI.Challonge
 
             //Create RestClient & RestRequest
             RestClient restClient = new RestClient("https://api.challonge.com/v1/");
-            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? "-" : string.Empty)}{tournamentUrl}.{dataFormat.ToString().ToLower()}", Method.GET)
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}.{dataFormat.ToString().ToLower()}", Method.GET)
             {
                 Credentials = new NetworkCredential(Username, APIKey),
                 Parameters =
@@ -192,7 +192,7 @@ namespace bracketAPI.Challonge
 
             //Create RestClient & RestRequest
             RestClient restClient = new RestClient("https://api.challonge.com/v1/");
-            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? "-" : string.Empty)}{tournamentUrl}/participants/{participantId}.{dataFormat.ToString().ToLower()}", Method.GET)
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}/participants/{participantId}.{dataFormat.ToString().ToLower()}", Method.GET)
             {
                 Credentials = new NetworkCredential(Username, APIKey),
                 Parameters = { new Parameter() { Name = "include_matches", Value = Convert.ToSingle(includeMatches), ContentType = null, Type = ParameterType.GetOrPost } },
@@ -216,101 +216,353 @@ namespace bracketAPI.Challonge
         /// <summary>
         /// Retrieve list of participants from specified tournament ID
         /// </summary>
-        public void GetParticipants(int tournamentId)
+        public async Task<List<ChallongeParticipant>> GetParticipants(int tournamentId, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/participants/index
-            //https://api.challonge.com/v1/tournaments/{tournament}/participants.{json|xml}
+            List<ChallongeParticipant> returnParticipants = new List<ChallongeParticipant>();
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{tournamentId}/participants.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject participant in JArray.Parse(response.Content))
+                        returnParticipants.Add(new ChallongeParticipant(participant));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement participant in XDocument.Parse(response.Content).Root.Elements())
+                        returnParticipants.Add(new ChallongeParticipant(participant));
+                }
+
+                return returnParticipants;
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve list of participants from specified tournament URL
         /// </summary>
-        public void GetParticipants(string tournamentUrl)
+        public async Task<List<ChallongeParticipant>> GetParticipants(string tournamentUrl, string subDomain = "", DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/participants/index
-            //https://api.challonge.com/v1/tournaments/{tournament}/participants.{json|xml}
+            List<ChallongeParticipant> returnParticipants = new List<ChallongeParticipant>();
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}/participants.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject participant in JArray.Parse(response.Content))
+                        returnParticipants.Add(new ChallongeParticipant(participant));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement participant in XDocument.Parse(response.Content).Root.Elements())
+                        returnParticipants.Add(new ChallongeParticipant(participant));
+                }
+
+                return returnParticipants;
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve match from specified tournament ID
         /// </summary>
-        public void GetMatch(int tournamentId, int matchId, bool includeAttachments = false)
+        public async Task<ChallongeMatch> GetMatch(int tournamentId, int matchId, bool includeAttachments = false, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/matches/show
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}.{json|xml}
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{tournamentId}/matches/{matchId}.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                Parameters = { new Parameter() { Name = "include_attachments", Value = Convert.ToSingle(includeAttachments), ContentType = null, Type = ParameterType.GetOrPost } },
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                    return new ChallongeMatch(JObject.Parse(response.Content));
+                else if (dataFormat == DataFormat.XML)
+                    return new ChallongeMatch(XDocument.Parse(response.Content).Root);
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve match from specified tournament URL
         /// </summary>
-        public void GetMatch(string tournamentUrl, int matchId, bool includeAttachments = false)
+        public async Task<ChallongeMatch> GetMatch(string tournamentUrl, int matchId, string subDomain = "", bool includeAttachments = false, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/matches/show
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}.{json|xml}
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}/matches/{matchId}.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                Parameters = { new Parameter() { Name = "include_attachments", Value = Convert.ToSingle(includeAttachments), ContentType = null, Type = ParameterType.GetOrPost } },
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                    return new ChallongeMatch(JObject.Parse(response.Content));
+                else if (dataFormat == DataFormat.XML)
+                    return new ChallongeMatch(XDocument.Parse(response.Content).Root);
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve list of matches from specified tournament ID
         /// </summary>
-        public void GetMatches(int tournamentId, TournamentState state = TournamentState.All, int participantId = 0)
+        public async Task<List<ChallongeMatch>> GetMatches(int tournamentId, MatchState state = MatchState.All, int participantId = -1, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/matches/index
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches.{json|xml}
+            List<ChallongeMatch> returnMatches = new List<ChallongeMatch>();
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{tournamentId}/matches.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                Parameters = { new Parameter() { Name = "state", Value = state.ToString().ToLower(), ContentType = null, Type = ParameterType.GetOrPost } },
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+            if (participantId >= 0)
+                request.AddParameter("participant_id", participantId, null, ParameterType.GetOrPost);
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject match in JArray.Parse(response.Content))
+                        returnMatches.Add(new ChallongeMatch(match));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement match in XDocument.Parse(response.Content).Root.Elements())
+                        returnMatches.Add(new ChallongeMatch(match));
+                }
+
+                return returnMatches;
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve list of matches from specified tournament URL
         /// </summary>
-        public void GetMatches(string tournamentUrl, TournamentState state = TournamentState.All, int participantId = 0)
+        public async Task<List<ChallongeMatch>> GetMatches(string tournamentUrl, string subDomain = "", MatchState state = MatchState.All, int participantId = -1, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/matches/index
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches.{json|xml}
+            List<ChallongeMatch> returnMatches = new List<ChallongeMatch>();
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}/matches.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                Parameters = { new Parameter() { Name = "state", Value = state.ToString().ToLower(), ContentType = null, Type = ParameterType.GetOrPost } },
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+            if (participantId >= 0)
+                request.AddParameter("participant_id", participantId, null, ParameterType.GetOrPost);
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject match in JArray.Parse(response.Content))
+                        returnMatches.Add(new ChallongeMatch(match));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement match in XDocument.Parse(response.Content).Root.Elements())
+                        returnMatches.Add(new ChallongeMatch(match));
+                }
+
+                return returnMatches;
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve match attachment from specified tournament ID
         /// </summary>
-        public void GetMatchAttachment(int tournamentId, int matchId, int attachmentId)
+        public async Task<ChallongeAttachment> GetMatchAttachment(int tournamentId, int matchId, int attachmentId, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/match_attachments/show
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}/attachments/{attachment_id}.{json|xml}
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{tournamentId}/matches/{matchId}/attachments/{attachmentId}.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                    return new ChallongeAttachment(JObject.Parse(response.Content));
+                else if (dataFormat == DataFormat.XML)
+                    return new ChallongeAttachment(XDocument.Parse(response.Content).Root);
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve match attachment from specified tournament URL
         /// </summary>
-        public void GetMatchAttachment(string tournamentUrl, int matchId, int attachmentId)
+        public async Task<ChallongeAttachment> GetMatchAttachment(string tournamentUrl, int matchId, int attachmentId, string subDomain = "", DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/match_attachments/show
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}/attachments/{attachment_id}.json
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}/matches/{matchId}/attachments/{attachmentId}.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                    return new ChallongeAttachment(JObject.Parse(response.Content));
+                else if (dataFormat == DataFormat.XML)
+                    return new ChallongeAttachment(XDocument.Parse(response.Content).Root);
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve list of match attachments from specified tournament ID
         /// </summary>
-        public void GetMatchAttachments(int tournamentId, int matchId)
+        public async Task<List<ChallongeAttachment>> GetMatchAttachments(int tournamentId, int matchId, DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/match_attachments/index
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}/attachments.json
+            List<ChallongeAttachment> returnMatches = new List<ChallongeAttachment>();
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{tournamentId}/matches/{matchId}/attachments.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject attachment in JArray.Parse(response.Content))
+                        returnMatches.Add(new ChallongeAttachment(attachment));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement attachment in XDocument.Parse(response.Content).Root.Elements())
+                        returnMatches.Add(new ChallongeAttachment(attachment));
+                }
+
+                return returnMatches;
+            }
+
+            //Request failed
+            return null;
         }
 
         /// <summary>
         /// Retrieve list of match attachments from specified tournament URL
         /// </summary>
-        public void GetMatchAttachments(string tournamentUrl, int matchId)
+        public async Task<List<ChallongeAttachment>> GetMatchAttachments(string tournamentUrl, int matchId, string subDomain = "", DataFormat dataFormat = DataFormat.JSON)
         {
             //http://api.challonge.com/v1/documents/match_attachments/index
-            //https://api.challonge.com/v1/tournaments/{tournament}/matches/{match_id}/attachments.json
+            List<ChallongeAttachment> returnMatches = new List<ChallongeAttachment>();
 
+            //Create RestClient & RestRequest
+            RestClient restClient = new RestClient("https://api.challonge.com/v1/");
+            RestRequest request = new RestRequest($"tournaments/{(!string.IsNullOrWhiteSpace(subDomain) ? $"{subDomain}-" : string.Empty)}{tournamentUrl}/matches/{matchId}/attachments.{dataFormat.ToString().ToLower()}", Method.GET)
+            {
+                Credentials = new NetworkCredential(Username, APIKey),
+                RequestFormat = (RestSharp.DataFormat)dataFormat
+            };
+
+            //Pass request
+            IRestResponse response = await restClient.ExecuteTaskAsync(request);
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                if (dataFormat == DataFormat.JSON)
+                {
+                    foreach (JObject attachment in JArray.Parse(response.Content))
+                        returnMatches.Add(new ChallongeAttachment(attachment));
+                }
+                else if (dataFormat == DataFormat.XML)
+                {
+                    foreach (XElement attachment in XDocument.Parse(response.Content).Root.Elements())
+                        returnMatches.Add(new ChallongeAttachment(attachment));
+                }
+
+                return returnMatches;
+            }
+
+            //Request failed
+            return null;
         }
     }
 }

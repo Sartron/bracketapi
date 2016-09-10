@@ -1,4 +1,10 @@
-﻿namespace bracketAPI.Challonge
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace bracketAPI.Challonge
 {
     /// <summary>
     /// Challonge tournament states
@@ -21,6 +27,17 @@
         DoubleElimination,
         RoundRobin,
         Swiss
+    }
+
+    /// <summary>
+    /// Challonge match states
+    /// </summary>
+    public enum MatchState
+    {
+        All,
+        Pending,
+        Open,
+        Complete
     }
 
     /// <summary>
