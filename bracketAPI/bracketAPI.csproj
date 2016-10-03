@@ -54,8 +54,11 @@
   <ItemGroup>
     <Compile Include="Challonge\ChallongeClasses.cs" />
     <Compile Include="Challonge\ChallongeClient.cs" />
+    <Compile Include="Challonge\ChallongeClientAttachment.cs" />
+    <Compile Include="Challonge\ChallongeClientMatch.cs" />
+    <Compile Include="Challonge\ChallongeClientParticipant.cs" />
+    <Compile Include="Challonge\ChallongeClientTournament.cs" />
     <Compile Include="Challonge\ChallongeEnums.cs" />
-    <Compile Include="Challonge\ChallongeHelpers.cs" />
     <Compile Include="Helpers.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
